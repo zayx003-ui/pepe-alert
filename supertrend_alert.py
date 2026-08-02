@@ -9,8 +9,8 @@ import requests
 import pandas as pd
 import numpy as np
 
-SYMBOL = "PEPEUSDT"
-INTERVAL = "1d"
+SYMBOL = "PEPE-USDT"
+INTERVAL = "1day"
 ATR_PERIOD = 10
 MULTIPLIER = 3
 STATE_FILE = "state.json"
@@ -20,14 +20,15 @@ TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 
 def get_klines(symbol, interval, limit=100):
-    url = "https://api.binance.com/api/v3/klines"
-    params = {"symbol": symbol, "interval": interval, "limit": limit}
+    url = "https://api.kucoin.com/api/v1/market/candles"
+    params = {"symbol": symbol, "type": interval}
     r = requests.get(url, params=params, timeout=15)
     r.raise_for_status()
-    data = r.json()
+    payload = r.json()
+    data = payload["data"]
+    data = list(reversed(data))[-limit:]
     df = pd.DataFrame(data, columns=[
-        "open_time", "open", "high", "low", "close", "volume",
-        "close_time", "qav", "trades", "tbbav", "tbqav", "ignore"
+        "time", "open", "close", "high", "low", "volume", "turnover"
     ])
     for col in ["open", "high", "low", "close"]:
         df[col] = df[col].astype(float)
