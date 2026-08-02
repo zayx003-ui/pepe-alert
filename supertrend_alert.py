@@ -1,9 +1,6 @@
 """
 Bot d'alerte SuperTrend -> Telegram
 Gratuit, tourne sur GitHub Actions (aucun serveur nécessaire)
-
-Configuration : mets ton TOKEN et CHAT_ID dans les "Secrets" GitHub
-(voir README plus bas), jamais en dur dans ce fichier.
 """
 
 import os
@@ -12,15 +9,14 @@ import requests
 import pandas as pd
 import numpy as np
 
-# ---------- CONFIG ----------
-SYMBOL = "PEPEUSDT"      # Paire sur Binance (pas d'EUR direct dispo, USDT proche de l'EUR)
-INTERVAL = "1d"           # 1d, 4h, 1h ...
+SYMBOL = "PEPEUSDT"
+INTERVAL = "1d"
 ATR_PERIOD = 10
 MULTIPLIER = 3
-STATE_FILE = "state.json"  # garde en mémoire le dernier signal envoyé
+STATE_FILE = "state.json"
 
-TELEGRAM_TOKEN = os.environ["8815996302:AAG2539ZhxQhhdKSLgQI7nb4ltkgGUzEsYU"]
-TELEGRAM_CHAT_ID = os.environ["7243865548"]
+TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 
 def get_klines(symbol, interval, limit=100):
@@ -49,11 +45,10 @@ def compute_supertrend(df, period=10, multiplier=3):
     upper_band = hl2 + multiplier * atr
     lower_band = hl2 - multiplier * atr
 
-    supertrend = [True] * len(df)  # True = haussier
+    supertrend = [True] * len(df)
 
     for i in range(1, len(df)):
         curr_close = df["close"].iloc[i]
-        prev_close = df["close"].iloc[i - 1]
 
         if curr_close > upper_band.iloc[i - 1]:
             supertrend[i] = True
