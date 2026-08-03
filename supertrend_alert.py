@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 
 SYMBOL = "PEPE-USDT"
-INTERVAL = "4hour"
+INTERVAL = "5min"
 ATR_PERIOD = 10
 MULTIPLIER = 3
 STATE_FILE = "state.json"
