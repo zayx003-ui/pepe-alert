@@ -112,7 +112,8 @@ SIGNING_KEY = load_signing_key(REVX_PRIVATE_KEY_PEM)
 def revx_request(method, path, query="", body_obj=None):
     timestamp = str(int(time.time() * 1000))
     body = json.dumps(body_obj, separators=(",", ":")) if body_obj else ""
-    message = f"{timestamp}{method}{path}{query}{body}".encode("utf-8")
+    sign_path = f"/api{path}"
+    message = f"{timestamp}{method}{sign_path}{query}{body}".encode("utf-8")
     signature = base64.b64encode(SIGNING_KEY.sign(message).signature).decode()
 
     headers = {
