@@ -168,6 +168,19 @@ def send_telegram(message):
     requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
 
 
+def get_usd_to_eur_rate():
+    try:
+        r = requests.get(
+            "https://api.frankfurter.app/latest",
+            params={"from": "USD", "to": "EUR"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        return r.json()["rates"]["EUR"]
+    except Exception:
+        return None
+
+
 # ---------- MAIN ----------
 def main():
     df = get_klines(SYMBOL, INTERVAL)
@@ -202,27 +215,35 @@ def main():
             amount_to_spend = usd_balance * BUY_PERCENT
             if amount_to_spend < 1:
                 send_telegram(
-                    f"Signal BUY detecte mais montant trop faible "
-                    f"({amount_to_spend:.2f}USD disponible: {usd_balance:.2f}USD). Aucun ordre passe."
+                    f"⚠️ BUY signal detected but amount too low "
+                    f"(${amount_to_spend:.2f} USD available: ${usd_balance:.2f}). No order placed."
                 )
             else:
                 result = place_market_order("buy", quote_size=amount_to_spend)
+                rate = get_usd_to_eur_rate()
+                eur_amount = amount_to_spend * rate if rate else None
+                eur_str = f" (~€{eur_amount:.2f})" if eur_amount else ""
                 send_telegram(
-                    f"ACHAT EXECUTE\n{REVX_SYMBOL}\n"
-                    f"Montant: {amount_to_spend:.2f}USD (35% du solde)\n"
-                    f"Prix indicatif: {price:.10f}"
+                    f"🟢 BUY EXECUTED\n{REVX_SYMBOL}\n"
+                    f"Amount: ${amount_to_spend:.2f}{eur_str}\n"
+                    f"Indicative price: {price:.10f}"
                 )
         else:
             base_currency = REVX_SYMBOL.split("-")[0]
             pepe_balance = get_balance(base_currency)
             if pepe_balance <= 0:
-                send_telegram("Signal SELL detecte mais aucun PEPE en solde. Aucun ordre passe.")
+                send_telegram("⚠️ SELL signal detected but no PEPE balance. No order placed.")
             else:
                 result = place_market_order("sell", base_size=pepe_balance)
+                usd_value = pepe_balance * price
+                rate = get_usd_to_eur_rate()
+                eur_value = usd_value * rate if rate else None
+                eur_str = f" (~€{eur_value:.2f})" if eur_value else ""
                 send_telegram(
-                    f"VENTE EXECUTEE\n{REVX_SYMBOL}\n"
-                    f"Quantite: {pepe_balance} PEPE\n"
-                    f"Prix indicatif: {price:.10f}"
+                    f"🔴 SELL EXECUTED\n{REVX_SYMBOL}\n"
+                    f"Quantity: {pepe_balance} PEPE\n"
+                    f"Value: ~${usd_value:.2f}{eur_str}\n"
+                    f"Indicative price: {price:.10f}"
                 )
 
         state["trade_count"] += 1
@@ -230,7 +251,7 @@ def main():
         save_state(state)
 
     except requests.exceptions.HTTPError as e:
-        send_telegram(f"Erreur lors de l'ordre {current_signal}: {e}")
+        send_telegram(f"❌ Error placing {current_signal} order: {e}")
         print("Erreur API Revolut X:", e, e.response.text if e.response else "")
 
 
