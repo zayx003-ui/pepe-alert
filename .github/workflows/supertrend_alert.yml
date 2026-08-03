@@ -25,6 +25,8 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REVX_API_KEY: ${{ secrets.REVX_API_KEY }}
+          REVX_PRIVATE_KEY: ${{ secrets.REVX_PRIVATE_KEY }}
         run: python supertrend_alert.py
 
       - name: Sauvegarder l'état (state.json)
