@@ -1,24 +1,39 @@
 """
-Bot d'alerte SuperTrend -> Telegram
-Gratuit, tourne sur GitHub Actions (aucun serveur nécessaire)
+Bot SuperTrend -> Trading automatique sur Revolut X + alerte Telegram
+Tourne sur GitHub Actions
 """
 
 import os
 import json
+import time
+import uuid
+import base64
 import requests
 import pandas as pd
-import numpy as np
+from nacl.signing import SigningKey
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
 
-SYMBOL = "PEPE-USDT"
+# ---------- CONFIG SIGNAL ----------
+SYMBOL = "PEPE-USDT"      # Source du signal (KuCoin, historique fiable)
 INTERVAL = "5min"
 ATR_PERIOD = 10
 MULTIPLIER = 3
 STATE_FILE = "state.json"
 
+# ---------- CONFIG TRADING ----------
+REVX_SYMBOL = "PEPE-USD"       # Paire reellement tradee sur Revolut X
+BUY_PERCENT = 0.35             # 35% du solde EUR disponible a chaque BUY
+MAX_TRADES_PER_DAY = 3         # Securite anti-emballement
+
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+REVX_API_KEY = os.environ["REVX_API_KEY"]
+REVX_PRIVATE_KEY_PEM = os.environ["REVX_PRIVATE_KEY"]
+REVX_BASE_URL = "https://revx.revolut.com/api"
 
 
+# ---------- SIGNAL (KuCoin, inchange) ----------
 def get_klines(symbol, interval, limit=100):
     url = "https://api.kucoin.com/api/v1/market/candles"
     params = {"symbol": symbol, "type": interval}
@@ -65,41 +80,157 @@ def compute_supertrend(df, period=10, multiplier=3):
     return supertrend
 
 
-def load_last_signal():
+# ---------- ETAT (state.json) ----------
+def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE) as f:
-            return json.load(f).get("last_signal")
-    return None
+            return json.load(f)
+    return {"last_signal": None, "trade_count": 0, "trade_count_date": ""}
 
 
-def save_last_signal(signal):
+def save_state(state):
     with open(STATE_FILE, "w") as f:
-        json.dump({"last_signal": signal}, f)
+        json.dump(state, f)
 
 
+# ---------- SIGNATURE REVOLUT X (Ed25519) ----------
+def load_signing_key(pem_str):
+    private_key_obj = serialization.load_pem_private_key(
+        pem_str.encode(), password=None, backend=default_backend()
+    )
+    raw_private = private_key_obj.private_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PrivateFormat.Raw,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    return SigningKey(raw_private)
+
+
+SIGNING_KEY = load_signing_key(REVX_PRIVATE_KEY_PEM)
+
+
+def revx_request(method, path, query="", body_obj=None):
+    timestamp = str(int(time.time() * 1000))
+    body = json.dumps(body_obj, separators=(",", ":")) if body_obj else ""
+    message = f"{timestamp}{method}{path}{query}{body}".encode("utf-8")
+    signature = base64.b64encode(SIGNING_KEY.sign(message).signature).decode()
+
+    headers = {
+        "X-Revx-API-Key": REVX_API_KEY,
+        "X-Revx-Timestamp": timestamp,
+        "X-Revx-Signature": signature,
+    }
+    url = f"{REVX_BASE_URL}{path}"
+    if query:
+        url += f"?{query}"
+    if body_obj:
+        headers["Content-Type"] = "application/json"
+
+    if method == "GET":
+        r = requests.get(url, headers=headers, timeout=15)
+    elif method == "POST":
+        r = requests.post(url, headers=headers, data=body, timeout=15)
+    else:
+        raise ValueError("Methode non supportee")
+
+    r.raise_for_status()
+    return r.json()
+
+
+def get_balance(currency):
+    data = revx_request("GET", "/1.0/balances")
+    for entry in data:
+        if entry["currency"] == currency:
+            return float(entry["available"])
+    return 0.0
+
+
+def place_market_order(side, quote_size=None, base_size=None):
+    order_config = {}
+    if quote_size is not None:
+        order_config["market"] = {"quote_size": str(round(quote_size, 2))}
+    else:
+        order_config["market"] = {"base_size": str(base_size)}
+
+    body = {
+        "client_order_id": str(uuid.uuid4()),
+        "symbol": REVX_SYMBOL,
+        "side": side,
+        "order_configuration": order_config,
+    }
+    return revx_request("POST", "/1.0/orders", body_obj=body)
+
+
+# ---------- TELEGRAM ----------
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
 
 
+# ---------- MAIN ----------
 def main():
     df = get_klines(SYMBOL, INTERVAL)
     trend = compute_supertrend(df, ATR_PERIOD, MULTIPLIER)
     current_signal = "BUY" if trend[-1] else "SELL"
-    last_signal = load_last_signal()
-
     price = df["close"].iloc[-1]
 
-    if current_signal != last_signal:
-        if current_signal == "BUY":
-            msg = f"🟢 BUY\n{SYMBOL} — Signal Achat (SuperTrend)\nPrix: {price:.10f}"
-        else:
-            msg = f"🔴 SELL\n{SYMBOL} — Signal Vente (SuperTrend)\nPrix: {price:.10f}"
-        send_telegram(msg)
-        save_last_signal(current_signal)
-        print("Alerte envoyée:", msg)
-    else:
+    state = load_state()
+    last_signal = state.get("last_signal")
+
+    today = time.strftime("%Y-%m-%d")
+    if state.get("trade_count_date") != today:
+        state["trade_count"] = 0
+        state["trade_count_date"] = today
+
+    if current_signal == last_signal:
         print("Pas de changement de tendance. Signal actuel:", current_signal)
+        return
+
+    if state["trade_count"] >= MAX_TRADES_PER_DAY:
+        send_telegram(
+            f"Signal {current_signal} detecte mais limite de "
+            f"{MAX_TRADES_PER_DAY} trades/jour atteinte. Aucun ordre passe."
+        )
+        state["last_signal"] = current_signal
+        save_state(state)
+        return
+
+    try:
+        if current_signal == "BUY":
+            usd_balance = get_balance("USD")
+            amount_to_spend = usd_balance * BUY_PERCENT
+            if amount_to_spend < 1:
+                send_telegram(
+                    f"Signal BUY detecte mais montant trop faible "
+                    f"({amount_to_spend:.2f}USD disponible: {usd_balance:.2f}USD). Aucun ordre passe."
+                )
+            else:
+                result = place_market_order("buy", quote_size=amount_to_spend)
+                send_telegram(
+                    f"ACHAT EXECUTE\n{REVX_SYMBOL}\n"
+                    f"Montant: {amount_to_spend:.2f}USD (35% du solde)\n"
+                    f"Prix indicatif: {price:.10f}"
+                )
+        else:
+            base_currency = REVX_SYMBOL.split("-")[0]
+            pepe_balance = get_balance(base_currency)
+            if pepe_balance <= 0:
+                send_telegram("Signal SELL detecte mais aucun PEPE en solde. Aucun ordre passe.")
+            else:
+                result = place_market_order("sell", base_size=pepe_balance)
+                send_telegram(
+                    f"VENTE EXECUTEE\n{REVX_SYMBOL}\n"
+                    f"Quantite: {pepe_balance} PEPE\n"
+                    f"Prix indicatif: {price:.10f}"
+                )
+
+        state["trade_count"] += 1
+        state["last_signal"] = current_signal
+        save_state(state)
+
+    except requests.exceptions.HTTPError as e:
+        send_telegram(f"Erreur lors de l'ordre {current_signal}: {e}")
+        print("Erreur API Revolut X:", e, e.response.text if e.response else "")
 
 
 if __name__ == "__main__":
