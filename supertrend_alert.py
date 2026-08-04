@@ -24,7 +24,7 @@ STATE_FILE = "state.json"
 # ---------- CONFIG TRADING ----------
 REVX_SYMBOL = "PEPE-USD"       # Paire reellement tradee sur Revolut X
 BUY_PERCENT = 0.35             # 35% du solde EUR disponible a chaque BUY
-MAX_TRADES_PER_DAY = 3         # Securite anti-emballement
+MAX_TRADES_PER_DAY = 150         # Securite anti-emballement
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
