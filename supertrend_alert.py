@@ -15,16 +15,16 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
 # ---------- CONFIG SIGNAL ----------
-SYMBOL = "PEPE-USDT"      # Source du signal (KuCoin, historique fiable)
+SYMBOL = "PEPE-USDT"
 INTERVAL = "5min"
 ATR_PERIOD = 10
 MULTIPLIER = 3
 STATE_FILE = "state.json"
 
 # ---------- CONFIG TRADING ----------
-REVX_SYMBOL = "PEPE-USD"       # Paire reellement tradee sur Revolut X
-BUY_PERCENT = 0.35             # 35% du solde EUR disponible a chaque BUY
-MAX_TRADES_PER_DAY = 3         # Securite anti-emballement
+REVX_SYMBOL = "PEPE-USD"
+BUY_PERCENT = 0.35
+MAX_TRADES_PER_DAY = 3
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
@@ -33,7 +33,6 @@ REVX_PRIVATE_KEY_PEM = os.environ["REVX_PRIVATE_KEY"]
 REVX_BASE_URL = "https://revx.revolut.com/api"
 
 
-# ---------- SIGNAL (KuCoin, inchange) ----------
 def get_klines(symbol, interval, limit=100):
     url = "https://api.kucoin.com/api/v1/market/candles"
     params = {"symbol": symbol, "type": interval}
@@ -80,7 +79,6 @@ def compute_supertrend(df, period=10, multiplier=3):
     return supertrend
 
 
-# ---------- ETAT (state.json) ----------
 def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE) as f:
@@ -100,7 +98,6 @@ def save_state(state):
         json.dump(state, f)
 
 
-# ---------- SIGNATURE REVOLUT X (Ed25519) ----------
 def load_signing_key(pem_str):
     private_key_obj = serialization.load_pem_private_key(
         pem_str.encode(), password=None, backend=default_backend()
@@ -169,10 +166,23 @@ def place_market_order(side, quote_size=None, base_size=None):
     return revx_request("POST", "/1.0/orders", body_obj=body)
 
 
-# ---------- TELEGRAM ----------
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
+    r = requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
+    try:
+        return r.json()["result"]["message_id"]
+    except Exception:
+        return None
+
+
+def delete_telegram(message_id):
+    if not message_id:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteMessage"
+    try:
+        requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "message_id": message_id})
+    except Exception:
+        pass
 
 
 def get_usd_to_eur_rate():
@@ -188,7 +198,6 @@ def get_usd_to_eur_rate():
         return None
 
 
-# ---------- MAIN ----------
 def main():
     df = get_klines(SYMBOL, INTERVAL)
     trend = compute_supertrend(df, ATR_PERIOD, MULTIPLIER)
@@ -201,7 +210,6 @@ def main():
     now_str = time.strftime("%Y-%m-%d %H:%M:%S")
     today = time.strftime("%Y-%m-%d")
 
-    # Resume quotidien : si on change de jour, on annonce le bilan de la veille
     if state.get("check_count_date") and state.get("check_count_date") != today:
         send_telegram(
             f"📊 Daily summary — {state['check_count_date']}\n"
@@ -222,11 +230,13 @@ def main():
     if current_signal == last_signal:
         print("Pas de changement de tendance. Signal actuel:", current_signal)
         emoji = "🟢" if current_signal == "BUY" else "🔴"
-        send_telegram(
+        delete_telegram(state.get("last_status_message_id"))
+        new_id = send_telegram(
             f"{emoji} Check {now_str}\n"
             f"Signal: {current_signal} (no change)\n"
             f"Price: {price:.10f}"
         )
+        state["last_status_message_id"] = new_id
         save_state(state)
         return
 
