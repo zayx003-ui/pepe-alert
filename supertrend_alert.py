@@ -221,6 +221,12 @@ def main():
 
     if current_signal == last_signal:
         print("Pas de changement de tendance. Signal actuel:", current_signal)
+        emoji = "🟢" if current_signal == "BUY" else "🔴"
+        send_telegram(
+            f"{emoji} Check {now_str}\n"
+            f"Signal: {current_signal} (no change)\n"
+            f"Price: {price:.10f}"
+        )
         save_state(state)
         return
 
@@ -281,4 +287,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
