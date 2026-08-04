@@ -26,9 +26,11 @@ PARIS_TZ = ZoneInfo("Europe/Paris")
 
 # ---------- CONFIG TRADING ----------
 REVX_SYMBOL = "PEPE-USD"       # Paire reellement tradee sur Revolut X
-BUY_PERCENT = 1             # 35% du solde USD disponible a chaque BUY
+BUY_PERCENT = 0.35             # 35% du solde USD disponible a chaque BUY
 MAX_TRADES_PER_DAY = 300       # Securite anti-emballement
 STOP_LOSS_PERCENT = 0.10       # Vend automatiquement si -10% depuis l'achat
+ADX_PERIOD = 14
+ADX_THRESHOLD = 20             # Ne trade que si la tendance est assez forte
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
@@ -82,6 +84,31 @@ def compute_supertrend(df, period=10, multiplier=3):
                 upper_band.iloc[i] = upper_band.iloc[i - 1]
 
     return supertrend
+
+
+def compute_adx(df, period=14):
+    high = df["high"]
+    low = df["low"]
+    close = df["close"]
+
+    up_move = high.diff()
+    down_move = -low.diff()
+
+    plus_dm = ((up_move > down_move) & (up_move > 0)) * up_move
+    minus_dm = ((down_move > up_move) & (down_move > 0)) * down_move
+
+    tr1 = high - low
+    tr2 = (high - close.shift()).abs()
+    tr3 = (low - close.shift()).abs()
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+    atr = tr.ewm(alpha=1 / period, adjust=False).mean()
+    plus_di = 100 * plus_dm.ewm(alpha=1 / period, adjust=False).mean() / atr
+    minus_di = 100 * minus_dm.ewm(alpha=1 / period, adjust=False).mean() / atr
+
+    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di)
+    adx = dx.ewm(alpha=1 / period, adjust=False).mean()
+    return adx
 
 
 # ---------- ETAT (state.json) ----------
@@ -212,6 +239,7 @@ def main():
     trend = compute_supertrend(df, ATR_PERIOD, MULTIPLIER)
     current_signal = "BUY" if trend[-1] else "SELL"
     price = df["close"].iloc[-1]
+    adx_value = compute_adx(df, ADX_PERIOD).iloc[-1]
 
     state = load_state()
     last_signal = state.get("last_signal")
@@ -264,7 +292,8 @@ def main():
         new_id = send_telegram(
             f"{emoji} Check {now_str}\n"
             f"Signal: {current_signal} (no change)\n"
-            f"Price: {price:.10f}"
+            f"Price: {price:.10f}\n"
+            f"ADX: {adx_value:.1f}"
         )
         state["last_status_message_id"] = new_id
         save_state(state)
@@ -276,6 +305,12 @@ def main():
             f"{MAX_TRADES_PER_DAY} trades/jour atteinte. Aucun ordre passe."
         )
         state["last_signal"] = current_signal
+        save_state(state)
+        return
+
+    # ---------- FILTRE ADX : n'agit que si la tendance est assez forte ----------
+    if adx_value < ADX_THRESHOLD:
+        print(f"Signal {current_signal} detecte mais ADX trop faible ({adx_value:.1f} < {ADX_THRESHOLD}). En attente.")
         save_state(state)
         return
 
@@ -329,4 +364,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+                       
