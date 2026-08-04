@@ -2,7 +2,7 @@ name: SuperTrend Alert
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/3 * * * *"
   workflow_dispatch:
 
 permissions:
