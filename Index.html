@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>PEPE Bot Status</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 15px;
+  }
+  h1 { font-size: 1.3em; margin-bottom: 4px; }
+  .sub { color: #8b949e; font-size: 0.85em; margin-bottom: 25px; }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 14px;
+  }
+  .label { color: #8b949e; font-size: 0.8em; text-transform: uppercase; }
+  .value { font-size: 1.6em; font-weight: 600; margin-top: 4px; }
+  .buy { color: #3fb950; }
+  .sell { color: #f85149; }
+  .ok { color: #3fb950; }
+  #status { margin-top: 10px; font-size: 0.75em; color: #8b949e; }
+</style>
+</head>
+<body>
+  <h1>🐸 PEPE Trading Bot</h1>
+  <div class="sub">Mise a jour automatique toutes les 5 secondes</div>
+
+  <div class="card">
+    <div class="label">Signal actuel</div>
+    <div class="value" id="signal">...</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Dernier check</div>
+    <div class="value" id="lastcheck" style="font-size:1.1em;">...</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Checks aujourd'hui</div>
+    <div class="value" id="checkcount">...</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Trades aujourd'hui</div>
+    <div class="value" id="tradecount">...</div>
+  </div>
+
+  <div id="status">Chargement...</div>
+
+  <script>
+    const REPO = "zayx003-ui/pepe-alert";
+    const URL = `https://raw.githubusercontent.com/${REPO}/main/state.json?t=` + Date.now();
+
+    async function refresh() {
+      try {
+        const res = await fetch(URL, { cache: "no-store" });
+        const data = await res.json();
+
+        const signalEl = document.getElementById("signal");
+        signalEl.textContent = data.last_signal || "N/A";
+        signalEl.className = "value " + (data.last_signal === "BUY" ? "buy" : "sell");
+
+        document.getElementById("lastcheck").textContent = data.last_check || "N/A";
+        document.getElementById("checkcount").textContent = data.check_count || 0;
+        document.getElementById("tradecount").textContent = data.trade_count || 0;
+
+        document.getElementById("status").textContent =
+          "Derniere actualisation page: " + new Date().toLocaleTimeString();
+      } catch (e) {
+        document.getElementById("status").textContent = "Erreur de chargement";
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>
+
