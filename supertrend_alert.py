@@ -10,6 +10,8 @@ import uuid
 import base64
 import requests
 import pandas as pd
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from nacl.signing import SigningKey
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
@@ -20,10 +22,11 @@ INTERVAL = "3min"
 ATR_PERIOD = 10
 MULTIPLIER = 3
 STATE_FILE = "state.json"
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 # ---------- CONFIG TRADING ----------
 REVX_SYMBOL = "PEPE-USD"       # Paire reellement tradee sur Revolut X
-BUY_PERCENT = 1              # 35% du solde USD disponible a chaque BUY
+BUY_PERCENT = 0.35             # 35% du solde USD disponible a chaque BUY
 MAX_TRADES_PER_DAY = 300       # Securite anti-emballement
 STOP_LOSS_PERCENT = 0.10       # Vend automatiquement si -10% depuis l'achat
 
@@ -213,18 +216,8 @@ def main():
     state = load_state()
     last_signal = state.get("last_signal")
 
-    now_str = time.strftime("%Y-%m-%d %H:%M:%S")
-    today = time.strftime("%Y-%m-%d")
-
-    # Resume quotidien : si on change de jour, on annonce le bilan de la veille
-    if state.get("check_count_date") and state.get("check_count_date") != today:
-        send_telegram(
-            f"📊 Daily summary — {state['check_count_date']}\n"
-            f"Checks performed: {state.get('check_count', 0)}\n"
-            f"Last check: {state.get('last_check', 'N/A')}\n"
-            f"Current signal: {last_signal or 'N/A'}"
-        )
-        state["check_count"] = 0
+    now_str = datetime.now(PARIS_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    today = datetime.now(PARIS_TZ).strftime("%Y-%m-%d")
 
     state["check_count_date"] = today
     state["check_count"] = state.get("check_count", 0) + 1
