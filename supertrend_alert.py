@@ -15,16 +15,17 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
 # ---------- CONFIG SIGNAL ----------
-SYMBOL = "PEPE-USDT"
+SYMBOL = "PEPE-USDT"      # Source du signal (KuCoin, historique fiable)
 INTERVAL = "30min"
 ATR_PERIOD = 10
 MULTIPLIER = 3
 STATE_FILE = "state.json"
 
 # ---------- CONFIG TRADING ----------
-REVX_SYMBOL = "PEPE-USD"
-BUY_PERCENT = 0.35
-MAX_TRADES_PER_DAY = 150
+REVX_SYMBOL = "PEPE-USD"       # Paire reellement tradee sur Revolut X
+BUY_PERCENT = 1             # 35% du solde USD disponible a chaque BUY
+MAX_TRADES_PER_DAY = 200         # Securite anti-emballement
+STOP_LOSS_PERCENT = 0.10       # Vend automatiquement si -10% depuis l'achat
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
@@ -33,6 +34,7 @@ REVX_PRIVATE_KEY_PEM = os.environ["REVX_PRIVATE_KEY"]
 REVX_BASE_URL = "https://revx.revolut.com/api"
 
 
+# ---------- SIGNAL (KuCoin, inchange) ----------
 def get_klines(symbol, interval, limit=100):
     url = "https://api.kucoin.com/api/v1/market/candles"
     params = {"symbol": symbol, "type": interval}
@@ -79,6 +81,7 @@ def compute_supertrend(df, period=10, multiplier=3):
     return supertrend
 
 
+# ---------- ETAT (state.json) ----------
 def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE) as f:
@@ -98,6 +101,7 @@ def save_state(state):
         json.dump(state, f)
 
 
+# ---------- SIGNATURE REVOLUT X (Ed25519) ----------
 def load_signing_key(pem_str):
     private_key_obj = serialization.load_pem_private_key(
         pem_str.encode(), password=None, backend=default_backend()
@@ -166,6 +170,7 @@ def place_market_order(side, quote_size=None, base_size=None):
     return revx_request("POST", "/1.0/orders", body_obj=body)
 
 
+# ---------- TELEGRAM ----------
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     r = requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
@@ -198,6 +203,7 @@ def get_usd_to_eur_rate():
         return None
 
 
+# ---------- MAIN ----------
 def main():
     df = get_klines(SYMBOL, INTERVAL)
     trend = compute_supertrend(df, ATR_PERIOD, MULTIPLIER)
@@ -210,6 +216,7 @@ def main():
     now_str = time.strftime("%Y-%m-%d %H:%M:%S")
     today = time.strftime("%Y-%m-%d")
 
+    # Resume quotidien : si on change de jour, on annonce le bilan de la veille
     if state.get("check_count_date") and state.get("check_count_date") != today:
         send_telegram(
             f"📊 Daily summary — {state['check_count_date']}\n"
@@ -226,6 +233,36 @@ def main():
     if state.get("trade_count_date") != today:
         state["trade_count"] = 0
         state["trade_count_date"] = today
+
+    # ---------- STOP LOSS : verifie AVANT tout, meme si le signal n'a pas change ----------
+    entry_price = state.get("entry_price")
+    if entry_price:
+        drawdown = (price - entry_price) / entry_price
+        if drawdown <= -STOP_LOSS_PERCENT:
+            base_currency = REVX_SYMBOL.split("-")[0]
+            pepe_balance = get_balance(base_currency)
+            if pepe_balance > 0:
+                try:
+                    place_market_order("sell", base_size=pepe_balance)
+                    usd_value = pepe_balance * price
+                    rate = get_usd_to_eur_rate()
+                    eur_value = usd_value * rate if rate else None
+                    eur_str = f" (~€{eur_value:.2f})" if eur_value else ""
+                    send_telegram(
+                        f"🛑 STOP LOSS TRIGGERED\n{REVX_SYMBOL}\n"
+                        f"Loss: {drawdown*100:.1f}%\n"
+                        f"Sold: {pepe_balance} PEPE (~${usd_value:.2f}{eur_str})\n"
+                        f"Entry: {entry_price:.10f} -> Now: {price:.10f}"
+                    )
+                    # On force le signal a SELL pour que le bot puisse racheter
+                    # normalement des qu'un vrai signal BUY reapparait
+                    state["last_signal"] = "SELL"
+                    state["entry_price"] = None
+                    state["trade_count"] += 1
+                    save_state(state)
+                    return
+                except requests.exceptions.HTTPError as e:
+                    send_telegram(f"❌ Stop loss order failed: {e}")
 
     if current_signal == last_signal:
         print("Pas de changement de tendance. Signal actuel:", current_signal)
@@ -268,6 +305,7 @@ def main():
                     f"Amount: ${amount_to_spend:.2f}{eur_str}\n"
                     f"Indicative price: {price:.10f}"
                 )
+                state["entry_price"] = price
         else:
             base_currency = REVX_SYMBOL.split("-")[0]
             pepe_balance = get_balance(base_currency)
@@ -285,6 +323,7 @@ def main():
                     f"Value: ~${usd_value:.2f}{eur_str}\n"
                     f"Indicative price: {price:.10f}"
                 )
+                state["entry_price"] = None
 
         state["trade_count"] += 1
         state["last_signal"] = current_signal
@@ -297,3 +336,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
