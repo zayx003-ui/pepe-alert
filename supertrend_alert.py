@@ -18,7 +18,7 @@ from cryptography.hazmat.backends import default_backend
 
 # ---------- CONFIG SIGNAL ----------
 SYMBOL = "PEPE-USDT"      # Source du signal (KuCoin, historique fiable)
-INTERVAL = "3min"
+INTERVAL = "15min"
 ATR_PERIOD = 10
 MULTIPLIER = 3
 STATE_FILE = "state.json"
