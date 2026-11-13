@@ -49,7 +49,7 @@ export class InputManager {
       this.lookX += e.movementX * k;
       this.lookY += e.movementY * k * (this.settings.invertY ? -1 : 1);
     });
-    on(canvas, 'mousedown', (e) => {
+    on(canvas, 'pointerdown', (e) => {
       if (!this.locked) {
         this.onWantLock();
         return;
@@ -60,7 +60,7 @@ export class InputManager {
       }
       e.preventDefault();
     });
-    on(document, 'mouseup', (e) => {
+    on(document, 'pointerup', (e) => {
       if (e.button < 3) this.mouse[e.button] = false;
     });
     on(canvas, 'wheel', (e) => {

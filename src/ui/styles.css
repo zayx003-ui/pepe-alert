@@ -46,8 +46,14 @@ body {
   pointer-events: none;
 }
 
-#ui > * {
+/* Seuls les écrans captent la souris : le HUD laisse passer les clics vers la scène. */
+#ui > .screen,
+#ui > .notice-box {
   pointer-events: auto;
+}
+
+#ui > .screen.clear {
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------ écrans */
@@ -58,7 +64,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* Centrage par marges automatiques : un contenu plus haut que l'écran reste défilable. */
+  justify-content: flex-start;
   padding: 32px 24px;
   background:
     radial-gradient(ellipse at 50% 20%, rgba(40, 46, 54, 0.55), transparent 60%),
@@ -70,6 +77,18 @@ body {
     opacity 0.32s ease,
     transform 0.32s ease;
   overflow-y: auto;
+}
+
+.screen > :first-child {
+  margin-top: auto;
+}
+
+.screen > :last-child {
+  margin-bottom: auto;
+}
+
+.screen > .corner {
+  margin: 0;
 }
 
 .screen.visible {

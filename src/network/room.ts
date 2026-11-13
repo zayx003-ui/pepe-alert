@@ -59,6 +59,8 @@ export interface RoomEvents {
 
 export const HEARTBEAT_MS = 2000;
 export const TIMEOUT_MS = 7000;
+/** Au-delà de cet intervalle entre deux battements locaux, on considère que ce client était figé. */
+export const STALL_MS = 3000;
 /** Un joueur déconnecté garde sa place pendant ce délai. */
 export const RECONNECT_GRACE_MS = 90_000;
 /** Délai maximal d'attente des joueurs en chargement. */
@@ -83,6 +85,7 @@ export class RoomSession {
   status: ChannelStatus = 'connected';
   startPayload: StartPayload | null = null;
   private lastBeat = -Infinity;
+  private lastTick = -Infinity;
   private lastRegistry = -Infinity;
   private loadingSince = 0;
   private closed = false;
@@ -291,7 +294,15 @@ export class RoomSession {
   tick(): void {
     if (this.closed) return;
     const now = this.now();
+    const stalled = this.lastTick > -Infinity && now - this.lastTick > STALL_MS;
+    this.lastTick = now;
     if (now - this.lastBeat >= HEARTBEAT_MS) this.beat();
+    if (stalled) {
+      // Ce client vient d'être figé (chargement de la carte, onglet en arrière-plan) : le silence
+      // apparent des autres vient de lui. On leur accorde un nouveau délai avant tout jugement.
+      for (const m of this.members.values()) m.lastSeen = now;
+      return;
+    }
     let changed = false;
     for (const m of Array.from(this.members.values())) {
       if (m.id === this.self.id) continue;

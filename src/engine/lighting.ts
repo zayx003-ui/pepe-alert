@@ -209,7 +209,7 @@ export class LightRig {
       const still = this.candidates.some((c) => c.def.id === i);
       const powered = world.sectorPowered(lights[i]!.sector);
       const color = powered ? ((i * 7) % 3 === 0 ? COOL : WARM) : EMERGENCY;
-      const goal = still ? this.level[i]! * (powered ? 4.2 : 2.2) : 0;
+      const goal = still ? this.level[i]! * (powered ? 2.3 : 1.7) : 0;
       const light = slot.light;
       light.intensity += (goal - light.intensity) * Math.min(1, dt * 10);
       light.diffuse.copyFrom(color);

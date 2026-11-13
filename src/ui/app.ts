@@ -120,8 +120,24 @@ export class App {
     return this.online && supabase ? new SupabaseTransport(supabase) : new LocalTransport();
   }
 
+  /**
+   * Identité présentée au salon. En mode local, le profil est commun à tous les
+   * onglets du navigateur : chaque onglet reçoit donc son propre identifiant de joueur.
+   */
   private get identity(): Identity {
-    return { id: this.profile.id, name: this.profile.name, title: this.profile.title, color: this.profile.color };
+    let id = this.profile.id;
+    let name = this.profile.name;
+    if (!this.online) {
+      let tab = sessionStorage.getItem('nocturne.onglet');
+      if (!tab) {
+        tab = Math.random().toString(36).slice(2, 6);
+        sessionStorage.setItem('nocturne.onglet', tab);
+      }
+      id = `${id}-${tab}`;
+      // Paramètre d'URL pratique pour distinguer les onglets lors d'essais locaux.
+      name = this.params.get('nom')?.slice(0, 20) || name;
+    }
+    return { id, name, title: this.profile.title, color: this.profile.color };
   }
 
   /* ================================================================ */
@@ -440,7 +456,7 @@ export class App {
       if (!locked && this.inGame && !this.overlay && !this.tablet && !this.terminal && !this.hud?.chatOpen && !session.result) this.openPause();
     };
     input.onUiAction = (a) => this.onUiAction(a);
-    this.canvas.addEventListener('mousedown', this.onCanvasClick);
+    this.canvas.addEventListener('pointerdown', this.onCanvasClick);
     this.hud.toast('info', 'Cliquez pour prendre le contrôle. Tab : inventaire · M : carte · Échap : menu.');
     // Arrivée en cours de partie : récupère l'état complet auprès de l'hôte.
     if (!session.isHost) session.requestSync();
@@ -607,6 +623,7 @@ export class App {
     this.resultShown = true;
     const session = this.session;
     const isHost = session?.isHost ?? false;
+    const selfId = session?.self.id ?? this.profile.id;
     // Laisse voir la fin (mort, sas) avant de couper.
     await new Promise((r) => setTimeout(r, 2200));
     this.endGame();
@@ -621,21 +638,21 @@ export class App {
         this.showMenu();
       },
     };
-    this.show(resultsScreen(result, this.profile.id, null, actions, canLobby));
+    this.show(resultsScreen(result, selfId, null, actions, canLobby));
     let outcome: ResultOutcome;
     try {
-      outcome = await this.store.recordResult(result, isHost);
+      outcome = await this.store.recordResult(result, isHost, selfId);
       this.profile = outcome.profile;
     } catch (e) {
       outcome = { profile: this.profile, xp: 0, newAchievements: [], leveledUp: false, warning: `Résultat non enregistré : ${e instanceof Error ? e.message : String(e)}` };
     }
-    if (this.current && !this.inGame && !this.lobby) this.show(resultsScreen(result, this.profile.id, outcome, actions, canLobby));
+    if (this.current && !this.inGame && !this.lobby) this.show(resultsScreen(result, selfId, outcome, actions, canLobby));
   }
 
   /** Démonte tout ce qui appartient à la partie en cours. */
   private endGame(): void {
     this.inGame = false;
-    this.canvas.removeEventListener('mousedown', this.onCanvasClick);
+    this.canvas.removeEventListener('pointerdown', this.onCanvasClick);
     this.closePanels();
     this.overlay?.remove();
     this.overlay = null;

@@ -242,7 +242,7 @@ export class GameSession {
   private doorPrev: Uint8Array;
   private lastHostState: HostExport | null = null;
   private lastEntities: EntitySnapshot[] = [];
-  private syncRequested = 0;
+  private syncRequested = -Infinity;
   private deathSent = false;
   private currentSector: SectorDef = SECTORS[0]!;
   private actor: ActorCtx;

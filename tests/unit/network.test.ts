@@ -148,6 +148,24 @@ describe('salons', () => {
     expect(rooms[0]!.isHost).toBe(false);
   });
 
+  it("un client figé (chargement, onglet en veille) ne s'élit pas hôte à son réveil", async () => {
+    const { hub, rooms, tick } = await lobby(3);
+    // Les autres continuent de battre pendant que le troisième est figé vingt secondes.
+    for (let t = 0; t < 20_000; t += 250) {
+      hub.advance(250);
+      rooms[0]!.tick();
+      rooms[1]!.tick();
+    }
+    rooms[2]!.tick();
+    expect(rooms[2]!.hostId).toBe('u1');
+    expect(rooms[2]!.members.get('u1')!.state).not.toBe('disconnected');
+    tick(3000);
+    for (const r of rooms) {
+      expect(r.hostId).toBe('u1');
+      expect(r.list().every((m) => m.state !== 'disconnected')).toBe(true);
+    }
+  });
+
   it('le dernier joueur à partir supprime le salon', async () => {
     const { hub, rooms } = await lobby(2);
     const code = rooms[0]!.code;

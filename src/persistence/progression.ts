@@ -134,8 +134,13 @@ export const ACHIEVEMENTS: Achievement[] = [
 ];
 
 /** Applique un résultat au profil (mode local ; en ligne le serveur fait de même). */
-export function applyResult(profile: Profile, result: ExpeditionResult, xp: number): { profile: Profile; newAchievements: string[]; leveledUp: boolean } {
-  const me = result.players.find((p) => p.id === profile.id);
+export function applyResult(
+  profile: Profile,
+  result: ExpeditionResult,
+  xp: number,
+  playerId: string = profile.id,
+): { profile: Profile; newAchievements: string[]; leveledUp: boolean } {
+  const me = result.players.find((p) => p.id === playerId);
   const next: Profile = { ...profile, creatures: profile.creatures.slice(), documents: profile.documents.slice(), achievements: profile.achievements.slice() };
   if (!me) return { profile: next, newAchievements: [], leveledUp: false };
   next.xp += xp;

@@ -81,6 +81,8 @@ export class Renderer {
     scene.fogDensity = this.profile.fogDensity;
     scene.fogColor = new Color3(0.012, 0.014, 0.018);
     scene.skipPointerMovePicking = true;
+    // Les entrées sont gérées par InputManager : la scène ne doit pas capter (ni bloquer) les clics.
+    scene.detachControl();
     scene.autoClearDepthAndStencil = true;
     // Sans post-traitement, le rendu tonal est porté par les matériaux eux-mêmes.
     const ip = scene.imageProcessingConfiguration;

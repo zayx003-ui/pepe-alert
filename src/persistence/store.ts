@@ -22,13 +22,17 @@ export interface ProfileStore {
   readonly online: boolean;
   load(): Promise<Profile>;
   saveIdentity(patch: Partial<Pick<Profile, 'name' | 'title' | 'color'>>): Promise<Profile>;
-  /** Enregistre le résultat d'une expédition et renvoie le profil à jour. */
-  recordResult(result: ExpeditionResult, isHost: boolean): Promise<ResultOutcome>;
+  /**
+   * Enregistre le résultat d'une expédition et renvoie le profil à jour.
+   * `playerId` : identifiant sous lequel le joueur figurait dans la partie.
+   */
+  recordResult(result: ExpeditionResult, isHost: boolean, playerId: string): Promise<ResultOutcome>;
   /** Hôte : déclare l'ouverture d'une session côté serveur ; renvoie son identifiant. */
   openSession(roomCode: string, seed: string, players: string[]): Promise<string>;
 }
 
 const LOCAL_KEY = 'nocturne.profil';
+const SESSIONS_KEY = 'nocturne.sessions';
 
 function uuid(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -40,9 +44,17 @@ function uuid(): string {
 
 export class LocalProfileStore implements ProfileStore {
   readonly online = false;
-  private recorded = new Set<string>();
 
   constructor(private storage: Pick<Storage, 'getItem' | 'setItem'> = localStorage) {}
+
+  /** Sessions déjà comptées (conservées : deux onglets du même navigateur partagent le profil). */
+  private recorded(): string[] {
+    try {
+      return JSON.parse(this.storage.getItem(SESSIONS_KEY) ?? '[]') as string[];
+    } catch {
+      return [];
+    }
+  }
 
   private read(): Profile {
     try {
@@ -74,13 +86,15 @@ export class LocalProfileStore implements ProfileStore {
     return p;
   }
 
-  async recordResult(result: ExpeditionResult): Promise<ResultOutcome> {
+  async recordResult(result: ExpeditionResult, _isHost = true, playerId?: string): Promise<ResultOutcome> {
     const current = this.read();
+    const id = playerId ?? current.id;
     // Un même résultat ne peut être compté qu'une fois.
-    if (this.recorded.has(result.sessionId)) return { profile: current, xp: 0, newAchievements: [], leveledUp: false };
-    this.recorded.add(result.sessionId);
-    const xp = computeXp(result, current.id);
-    const { profile, newAchievements, leveledUp } = applyResult(current, result, xp);
+    const done = this.recorded();
+    if (done.includes(result.sessionId)) return { profile: current, xp: 0, newAchievements: [], leveledUp: false, warning: 'Résultat déjà enregistré pour ce profil.' };
+    this.storage.setItem(SESSIONS_KEY, JSON.stringify([...done, result.sessionId].slice(-30)));
+    const xp = computeXp(result, id);
+    const { profile, newAchievements, leveledUp } = applyResult(current, result, xp, id);
     this.write(profile);
     return { profile, xp, newAchievements, leveledUp };
   }

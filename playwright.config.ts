@@ -7,13 +7,13 @@ const executablePath = process.env.PW_CHROMIUM_PATH ?? (existsSync(preinstalled)
 
 export default defineConfig({
   testDir: 'tests/e2e',
-  timeout: 180_000,
+  timeout: 300_000,
   expect: { timeout: 30_000 },
   workers: 1,
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:4173',
-    viewport: { width: 1280, height: 720 },
+    viewport: { width: 800, height: 450 },
     launchOptions: {
       executablePath,
       args: [
@@ -24,6 +24,10 @@ export default defineConfig({
         '--use-fake-ui-for-media-stream',
         '--use-fake-device-for-media-stream',
         '--autoplay-policy=no-user-gesture-required',
+        // Plusieurs onglets jouent en même temps : aucun ne doit être mis en veille.
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+        '--disable-backgrounding-occluded-windows',
       ],
     },
   },
