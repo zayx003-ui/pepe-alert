@@ -34,8 +34,9 @@ Environ 17 900 lignes de TypeScript (55 fichiers), 610 lignes de SQL, aucun asse
 | Rendu | Textures PBR procédurales, géométrie fusionnée, instances, budget de lumières, ombres de la lampe, brouillard, post-traitement, 3 qualités | captures, tests navigateur |
 | Audio | 66 sons synthétisés, 7 catégories, spatialisation, occlusion, priorités, ambiance et musique dynamiques, silence dramatique | aucune vérification à l'oreille (voir plus bas) |
 | Interface | Les 19 écrans demandés + pause + terminal, touches reconfigurables | 2 tests navigateur |
+| Parcours complet | Solo : déplacement réel au clavier et à la souris, abandon, seconde expédition ; victoire par le sas avec récompense | 3 tests navigateur |
 
-Total : **113 tests unitaires, 53 assertions SQL, 8 tests navigateur** — tous verts au dernier lancement.
+Total : **113 tests unitaires, 53 assertions SQL, 9 tests navigateur** — tous verts au dernier lancement.
 
 ## Fait mais non vérifié
 
@@ -46,7 +47,7 @@ Total : **113 tests unitaires, 53 assertions SQL, 8 tests navigateur** — tous 
 - **Les performances réelles** : seul un rendu logiciel (SwiftShader, 3 à 6 images/s) était disponible. Rien ne permet d'affirmer la fluidité sur un PC moyen.
 - **Le son** : aucun moyen d'écouter dans l'environnement de développement. Les recettes de synthèse s'exécutent sans erreur ; leur qualité et leur mixage sont à juger au casque.
 - **L'équilibrage** : aucune partie complète jouée par un humain. Durée réelle d'une expédition, difficulté des entités, rareté des fusibles : inconnues.
-- **Dans le navigateur, non couverts par un test** : terminal (portes, caméras, transfert), caméra portable, extraction par le sas, mort par une entité, spectateur. La logique sous-jacente est testée en mémoire.
+- **Dans le navigateur, non couverts par un test** : terminal (portes, caméras, transfert), caméra portable, mort par une entité, spectateur. La logique sous-jacente est testée en mémoire.
 - **Voix entre deux machines distinctes** (testée uniquement entre onglets en local).
 
 ## Non fait
@@ -54,7 +55,7 @@ Total : **113 tests unitaires, 53 assertions SQL, 8 tests navigateur** — tous 
 - **Déplacer des objets du décor** (pousser une caisse, tirer un chariot) — demandé dans le cahier des charges, absent.
 - **Serveur de jeu autoritaire** — l'hôte simule ; architecture d'évolution décrite dans `docs/NETWORK.md`.
 - **Canaux Realtime privés** — le canal d'un salon est accessible à qui connaît son code.
-- **Serveur TURN** pour la voix ; choix du périphérique d'entrée ; réglage du volume et sourdine par joueur dans l'interface (la logique existe dans `VoiceChat`, pas les boutons).
+- **Serveur TURN** pour la voix ; choix du périphérique d'entrée ; réglage du volume par joueur (la sourdine par joueur existe dans le lobby, pas en cours de partie).
 - **Conservation de l'inventaire** après rechargement de page.
 - **Hallucinations visuelles** propres au stress (seules existent les hallucinations sonores et les mirages du Visiteur).
 - Modèles 3D et animations dessinés : tout est en primitives. Pas de reflets en espace écran.
@@ -67,11 +68,10 @@ Total : **113 tests unitaires, 53 assertions SQL, 8 tests navigateur** — tous 
 1. Les néons sans ombre éclairent parfois à travers une cloison (atténué par la sélection des lumières en vue directe).
 2. Une entité bloquée contre un meuble traverse le décor au bout de 1,2 s pour se dégager.
 3. Marches d'escalier : écart visuel de ± 6 cm avec la rampe de collision.
-4. Objectif « Confiner la quarantaine » : validé d'emblée si l'on entre dans la zone sans ouvrir de sas (par un conduit).
-5. Après une reprise d'hôte, les entités perdent leur état mental (position conservée).
-6. Qualité « faible » : textures en 128 px, visiblement grossières de près.
-7. Un battant de porte traverse un joueur placé dans son débattement.
-8. Mode local à plusieurs onglets : le profil étant commun, seul le premier onglet enregistre le résultat.
+4. Après une reprise d'hôte, les entités perdent leur état mental (position conservée).
+5. Qualité « faible » : textures en 128 px, visiblement grossières de près.
+6. Un battant de porte traverse un joueur placé dans son débattement.
+7. Mode local à plusieurs onglets : le profil étant commun, seul le premier onglet enregistre le résultat.
 
 ## Corrigé en cours de route (pour mémoire)
 
@@ -80,16 +80,17 @@ Total : **113 tests unitaires, 53 assertions SQL, 8 tests navigateur** — tous 
 - Un client figé par le chargement se déclarait hôte ; ajout de la détection de gel.
 - La migration SQL échouait sur l'ajout d'un succès (`text[] || 'x'`).
 - Deux écrans coexistaient pendant les fondus (boutons fantômes).
+- L'objectif « Confiner la quarantaine » se validait d'emblée, les sas étant verrouillés d'origine.
 
 ## Prochaines tâches, par ordre d'intérêt
 
 1. **Brancher un projet Supabase réel** et dérouler : inscription, salon public, partie à deux machines, résultat. Corriger ce qui casse.
 2. **Jouer** une expédition complète à plusieurs, sur carte graphique réelle ; mesurer les images/s ; équilibrer.
 3. Écouter et retravailler le mixage ; remplacer les sons les moins convaincants.
-4. Tests navigateur manquants : terminal, extraction, mort par entité.
+4. Tests navigateur manquants : terminal, caméras, mort par entité, spectateur.
 5. Déplacement d'objets du décor.
-6. Canaux Realtime privés (`realtime.messages` + RLS) ; sourdine et volume par joueur.
-7. Corriger les bugs 1 à 4.
+6. Canaux Realtime privés (`realtime.messages` + RLS) ; sourdine en jeu et volume par joueur.
+7. Corriger les bugs 1 à 3.
 8. Serveur autoritaire (voir `docs/NETWORK.md`) si le jeu est ouvert au public.
 
 ## Dépendances externes

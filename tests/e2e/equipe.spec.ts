@@ -105,6 +105,11 @@ test('voix : deux clients établissent une liaison WebRTC et signalent qui parle
   await expect
     .poll(() => app<boolean>(b, "Array.from(a.voice.peers.values()).some((p) => p.source !== null && p.sink && p.sink.srcObject && p.sink.srcObject.getAudioTracks().length > 0)"), { timeout: 30_000 })
     .toBe(true);
+  // Sourdine locale d'un joueur depuis le lobby.
+  await b.getByRole('button', { name: 'Couper le son' }).click();
+  expect(await app<number>(b, 'a.voice.muted.size')).toBe(1);
+  await b.getByRole('button', { name: 'Rétablir le son' }).click();
+  expect(await app<number>(b, 'a.voice.muted.size')).toBe(0);
   await a.evaluate(() => (window as unknown as { nocturne: { voice: { setTalking(ch: string | null): void } } }).nocturne.voice.setTalking(null));
   await expect(b.locator('.badge', { hasText: 'parle' })).toHaveCount(0, { timeout: 20_000 });
 

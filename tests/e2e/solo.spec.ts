@@ -91,3 +91,48 @@ test('une graine donnée reproduit la même carte dans le navigateur', async ({ 
   expect(a2).toEqual(a1);
   expect(await app(page, 'a.session.seed')).toBe('REPRO');
 });
+
+test('victoire : objectif accompli, cycle du sas, extraction, récompense', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await enter(page, '&auto=solo&seed=VICTOIRE');
+  await waitForGame(page);
+
+  // Le sas refuse de s'ouvrir tant que l'objectif principal n'est pas accompli.
+  const refused = await app<boolean>(page, `(() => {
+    const s = a.session; const f = s.world.fixtureDefs.get('airlock.accueil');
+    s.motor.teleport(f.x, f.y, f.z);
+    return s.perform({ t: 'fx', id: 'airlock.accueil' }, 'cycle'); })()`);
+  expect(refused).toBe(false);
+
+  // On place l'objectif principal dans son état accompli (les étapes elles-mêmes sont couvertes par les tests unitaires).
+  await page.evaluate(() => {
+    const a = (window as unknown as { nocturne: { session: { host: { missions: { primary: { status: string; step: number }; dirty: boolean } } } } }).nocturne;
+    a.session.host.missions.primary.status = 'reussi';
+    a.session.host.missions.dirty = true;
+  });
+  await expect(page.locator('.objectives')).toContainText('Extraction', { timeout: 60_000 });
+  await expect(page.locator('.objectives')).toContainText('lancez le cycle du sas');
+
+  expect(await app<boolean>(page, "a.session.perform({ t: 'fx', id: 'airlock.accueil' }, 'cycle')")).toBe(true);
+  await expect(page.locator('.objectives')).toContainText('Cycle du sas en cours', { timeout: 60_000 });
+  // Abrège les 90 secondes du cycle.
+  await page.evaluate(() => (window as unknown as { nocturne: { session: { world: { setFixture(id: string, p: object): void } } } }).nocturne.session.world.setFixture('airlock.accueil', { t: 0.3 }));
+  await expect(page.locator('.objectives')).toContainText('Rejoignez le sas', { timeout: 60_000 });
+  await expect(page.locator('.timer')).toBeVisible();
+
+  // Le joueur se tient dans le sas ouvert : il est extrait, l'expédition se clôt sur une réussite.
+  await page.evaluate(() => {
+    const a = (window as unknown as { nocturne: { session: { layout: { extraction: { region: number }; regions: { cells: number[] }[] }; motor: { teleport(x: number, y: number, z: number): void } } } }).nocturne;
+    const cell = a.session.layout.regions[a.session.layout.extraction.region]!.cells[0]!;
+    a.session.motor.teleport((cell % 80) * 2 + 1, 0, Math.floor(cell / 80) * 2 + 1);
+  });
+  await expect(page.locator('.big-message.out')).toHaveText('EXTRAIT', { timeout: 120_000 });
+  await expect(page.locator('#result-title')).toHaveText('Expédition réussie', { timeout: 120_000 });
+  await expect(page.locator('#result-xp')).toHaveText(/^\+\d+$/, { timeout: 20_000 });
+  await expect(page.locator('.list-item', { hasText: '(vous)' })).toContainText('extrait');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('nocturne.profil')!));
+  expect(stored.successes).toBe(1);
+  expect(stored.achievements).toContain('premiere_sortie');
+  expect(errors).toEqual([]);
+});

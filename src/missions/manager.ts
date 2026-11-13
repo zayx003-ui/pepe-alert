@@ -79,6 +79,8 @@ export class MissionManager {
   private measured = new Map<SectorId, Set<number>>();
   private terminals = new Set<string>();
   private occupied = new Set<SectorId>();
+  /** Secteurs dont au moins un sas a été vu ouvert ou déverrouillé (confiner suppose d'avoir ouvert). */
+  private unsealed = new Set<SectorId>();
 
   constructor(
     private state: WorldState,
@@ -219,6 +221,9 @@ export class MissionManager {
           const rt = st.doors[d.id]!;
           if (rt.pos === DOOR_CLOSED && rt.locked) sealed++;
         }
+        if (sealed < total) this.unsealed.add(step.sector);
+        // Tant qu'aucun sas n'a été ouvert, il n'y a rien à confiner : l'étape reste en attente.
+        if (!this.unsealed.has(step.sector)) return [Math.max(0, total - 1), Math.max(1, total)];
         return [sealed, Math.max(1, total)];
       }
       case 'valves': {
@@ -332,13 +337,14 @@ export class MissionManager {
   }
 
   /** État interne complet, pour la reprise d'autorité par un nouvel hôte. */
-  exportFull(): { snap: MissionSnapshot; collected: [string, number][]; measured: [SectorId, number[]][]; terminals: string[]; threatBonus: number } {
+  exportFull(): { snap: MissionSnapshot; collected: [string, number][]; measured: [SectorId, number[]][]; terminals: string[]; threatBonus: number; unsealed: SectorId[] } {
     return {
       snap: this.snapshot(),
       collected: Array.from(this.collected),
       measured: Array.from(this.measured, ([s, set]) => [s, Array.from(set)]),
       terminals: Array.from(this.terminals),
       threatBonus: this.threatBonus,
+      unsealed: Array.from(this.unsealed),
     };
   }
 
@@ -348,6 +354,7 @@ export class MissionManager {
     this.measured = new Map(data.measured.map(([s, list]) => [s, new Set(list)]));
     this.terminals = new Set(data.terminals);
     this.threatBonus = data.threatBonus;
+    this.unsealed = new Set(data.unsealed ?? []);
   }
 
   load(s: MissionSnapshot): void {

@@ -151,6 +151,14 @@ describe('déroulement', () => {
     m.onObserve('echo');
     for (const [id] of w.fixtures) if (id.startsWith('valve.')) w.setFixture(id, { on: false });
     m.setOccupied(['quarantaine']);
+    // Les sas sont verrouillés d'origine : sans en avoir ouvert un, rien n'est « confiné ».
+    m.update(0.1);
+    m.update(0.1);
+    expect(state('S-SEAL').status).toBe('actif');
+    const gate = layout.doors.find((d) => d.kind === 'gate' && (layout.regions[d.a]!.sector === 'quarantaine' || layout.regions[d.b]!.sector === 'quarantaine'))!;
+    w.setDoor(gate.id, { locked: false });
+    m.update(0.1);
+    expect(state('S-SEAL').status).toBe('actif');
     for (const d of layout.doors) {
       if (d.kind !== 'gate') continue;
       if (layout.regions[d.a]!.sector === 'quarantaine' || layout.regions[d.b]!.sector === 'quarantaine') w.setDoor(d.id, { pos: DOOR_CLOSED, locked: true });

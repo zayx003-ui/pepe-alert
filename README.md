@@ -68,7 +68,7 @@ npm run typecheck     # TypeScript strict
 npm test              # 113 tests unitaires (Vitest) dont multi-clients en mémoire
 npm run test:sql      # migrations, RLS et barème sur un PostgreSQL local jetable
 npm run build         # build de production dans dist/
-npm run test:e2e      # 8 tests navigateur (Playwright) sur le build : solo, 2 et 6 clients, voix
+npm run test:e2e      # 9 tests navigateur (Playwright) sur le build : solo, victoire, 2 et 6 clients, voix
 npm run docs          # régénère docs/ENTITIES.md et docs/CONTENT.md depuis les données
 ```
 

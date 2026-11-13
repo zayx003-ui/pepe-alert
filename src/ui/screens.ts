@@ -353,6 +353,12 @@ export function lobbyScreen(room: RoomSession, voice: VoiceChat | null, online: 
           h('div', { class: 'col', style: 'gap:1px' }, h('span', { text: `${m.name}${m.id === room.self.id ? ' (vous)' : ''}` }), h('span', { class: 'muted small', text: `${m.title} · ${m.loadout.map((i) => itemDef(i).name).join(', ')}` })),
           h('span', { class: 'spacer' }),
           talking ? h('span', { class: 'badge ok', text: 'parle' }) : null,
+          voice?.listening && m.id !== room.self.id
+            ? button(voice.muted.has(m.id) ? 'Rétablir le son' : 'Couper le son', () => ((voice.muted.has(m.id) ? voice.muted.delete(m.id) : voice.muted.add(m.id)), refresh()), {
+                class: `small ${voice.muted.has(m.id) ? 'danger' : ''}`,
+                title: 'Sourdine locale : vous seul cessez de l’entendre.',
+              })
+            : null,
           m.id === room.hostId ? h('span', { class: 'badge warn', text: 'hôte' }) : null,
           h('span', { class: `badge ${m.id === room.hostId && m.state === 'connected' ? 'ok' : cls}`, text: m.id === room.hostId && m.state === 'connected' ? 'prêt' : label }),
         ),
