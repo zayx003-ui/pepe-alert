@@ -1241,6 +1241,9 @@ export class GameSession {
       p.z = p.tz = st.z;
       p.status = st.status;
     }
+    // Arrivée en cours de partie (rechargement de page) : on reprend là où l'hôte nous avait vu.
+    const mine = s.players[this.self.id];
+    if (mine && this.time < 4) this.restoreSelf(mine.x, mine.y, mine.z, mine.status);
   }
 
   /** Reprise après rechargement de page : l'hôte indique où le personnage se trouvait. */
