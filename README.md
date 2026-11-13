@@ -65,7 +65,7 @@ Les touches sont repérées par leur **position physique** : la disposition par 
 
 ```bash
 npm run typecheck     # TypeScript strict
-npm test              # 113 tests unitaires (Vitest) dont multi-clients en mémoire
+npm test              # 116 tests unitaires (Vitest) dont multi-clients en mémoire et endurance
 npm run test:sql      # migrations, RLS et barème sur un PostgreSQL local jetable
 npm run build         # build de production dans dist/
 npm run test:e2e      # 9 tests navigateur (Playwright) sur le build : solo, victoire, 2 et 6 clients, voix

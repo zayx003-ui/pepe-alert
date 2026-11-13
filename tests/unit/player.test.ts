@@ -194,8 +194,18 @@ describe('physiologie', () => {
     const bleeding = new PlayerSimulation();
     bleeding.damage(20, 'profonde', 'test');
     const before = bleeding.health;
-    for (let i = 0; i < 200; i++) bleeding.update(0.05, calm);
+    for (let i = 0; i < 600; i++) bleeding.update(0.05, calm);
     expect(bleeding.health).toBeLessThan(before - 3);
+    // Une plaie profonde non soignée reste mortelle à terme, mais laisse plusieurs minutes.
+    const untreated = new PlayerSimulation();
+    untreated.damage(36, 'profonde', 'test');
+    let seconds = 0;
+    while (untreated.alive && seconds < 3600) {
+      untreated.update(0.5, calm);
+      seconds += 0.5;
+    }
+    expect(untreated.alive).toBe(false);
+    expect(seconds).toBeGreaterThan(300);
     bleeding.treatWorst();
     const stable = bleeding.health;
     for (let i = 0; i < 200; i++) bleeding.update(0.05, calm);

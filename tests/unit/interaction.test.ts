@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { listActions, performAction, performTerminal, terminalDoors, type ActorCtx, type TargetRef } from '../../src/interaction/actions';
+import { listActions, performAction, performTerminal, targetTitle, terminalDoors, type ActorCtx, type TargetRef } from '../../src/interaction/actions';
+import { DOCUMENT_BY_ID } from '../../src/world/lore';
 import { generateLayout } from '../../src/world/generator';
 import { DOOR_AJAR, DOOR_CLOSED, DOOR_OPEN } from '../../src/world/grid';
 import { PROCESS_TIME, WorldState } from '../../src/world/state';
@@ -242,6 +243,17 @@ describe('objets et terminaux', () => {
     expect(w.items.has(it0.uid)).toBe(false);
     // Un second joueur arrive trop tard.
     expect(performAction(w, t, 'take', a).ok).toBe(false);
+  });
+
+  it('chaque cible a un intitulé affichable (régression : regarder un document plantait)', () => {
+    const w = world();
+    for (const it of layout.items) {
+      const title = targetTitle(w, { t: 'item', uid: it.uid });
+      expect(title.length, it.item).toBeGreaterThan(0);
+      if (it.item === 'document') expect(title).toBe(DOCUMENT_BY_ID[it.data!]!.title);
+    }
+    for (const f of layout.fixtures) expect(targetTitle(w, { t: 'fx', id: f.id }).length, f.id).toBeGreaterThan(0);
+    for (const d of layout.doors) if (d.kind !== 'arch') expect(targetTitle(w, { t: 'door', id: d.id }).length).toBeGreaterThan(0);
   });
 
   it('un document se lit sans encombrer l’inventaire', () => {

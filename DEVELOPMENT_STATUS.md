@@ -22,10 +22,11 @@ Environ 17 900 lignes de TypeScript (55 fichiers), 610 lignes de SQL, aucun asse
 | Déplacement | Marche, course, accroupissement, saut, pentes, conduits, collisions par sous-pas | 6 tests |
 | Physiologie | Santé, endurance, respiration/apnée, stress, température, bruit, infection, 5 blessures | 8 tests |
 | Inventaire | 18 objets, emplacements, poids, piles, batteries | 4 tests |
-| Interactions | Portes (7 actions), machines, terminaux, casiers, objets ; mêmes règles côté client et hôte | 18 tests |
+| Interactions | Portes (7 actions), machines, terminaux, casiers, objets ; mêmes règles côté client et hôte | 19 tests |
 | IA | Perception (vue, ouïe, lumière), mémoire, A* par capacités, 6 entités, le Visiteur à 9 états et traits variables | 23 tests |
 | Missions | 30 objectifs, étapes, échecs, conséquences, extraction, menace croissante, 8 événements dynamiques | 11 tests |
 | Réseau | Salons, états, admission par l'hôte, reprise d'hôte, reconnexion, détection de gel, désynchronisation, pertes de paquets, anti-triche de base | 27 tests en mémoire |
+| Endurance | 30 minutes de partie solo au hasard ; 10 minutes à 4 joueurs avec comparaison des mondes | 2 tests |
 | Multijoueur réel | 2 clients (salon, discussion, synchronisation, action validée par l'hôte, départ de l'hôte), 6 clients, 7ᵉ refusé, rechargement de page | 4 tests navigateur |
 | Voix | WebRTC pair à pair, proximité spatialisée et radio, écoute seule si micro refusé, indicateur de parole | 1 test navigateur (2 onglets, micro simulé) |
 | Discussion écrite | Proximité (distance + murs), radio (appareil, relais, brouillage), lobby | tests unitaires et navigateur |
@@ -36,17 +37,22 @@ Environ 17 900 lignes de TypeScript (55 fichiers), 610 lignes de SQL, aucun asse
 | Interface | Les 19 écrans demandés + pause + terminal, touches reconfigurables | 2 tests navigateur |
 | Parcours complet | Solo : déplacement réel au clavier et à la souris, abandon, seconde expédition ; victoire par le sas avec récompense | 3 tests navigateur |
 
-Total : **113 tests unitaires, 53 assertions SQL, 9 tests navigateur** — tous verts au dernier lancement.
+Total : **116 tests unitaires, 53 assertions SQL, 9 tests navigateur** — tous verts en local au dernier lancement. Sur GitHub Actions : voir « Intégration continue » ci-dessous.
+
+## Intégration continue
+
+Le workflow `ci.yml` a été exécuté sur GitHub à chaque push de cette branche. Typage, tests unitaires, tests SQL et build y passent. Les tests navigateur ont demandé deux corrections (serveur d'aperçu injoignable sur le runner, puis test du regard à la souris) ; **consulter l'onglet Actions pour l'état du dernier run** plutôt que de se fier à ce fichier.
 
 ## Fait mais non vérifié
 
 À traiter comme « probablement fonctionnel, à éprouver » :
 
 - **Tout le chemin Supabase côté client** : inscription, connexion, invité anonyme, `SupabaseTransport` (annuaire + canal Realtime), `SupabaseProfileStore`, appel de `start_session` / `finish_session` depuis le jeu. Le SQL est testé ; les appels depuis le navigateur ne l'ont jamais été faute de projet.
-- **Les workflows GitHub Actions** : écrits, jamais exécutés sur GitHub.
+- **Le workflow de déploiement Pages** (`deploy.yml`) : écrit, jamais exécuté (il ne se déclenche que sur `main`).
+- **Le déplacement relatif de la souris sous capture** : vérifié dans le Chromium local ; dans le navigateur sans interface de GitHub Actions, un mouvement synthétique ne le renseignait pas, si bien que le test fournit désormais ce déplacement explicitement. Le traitement du jeu est testé, pas la remontée par le navigateur — à confirmer à la main.
 - **Les performances réelles** : seul un rendu logiciel (SwiftShader, 3 à 6 images/s) était disponible. Rien ne permet d'affirmer la fluidité sur un PC moyen.
 - **Le son** : aucun moyen d'écouter dans l'environnement de développement. Les recettes de synthèse s'exécutent sans erreur ; leur qualité et leur mixage sont à juger au casque.
-- **L'équilibrage** : aucune partie complète jouée par un humain. Durée réelle d'une expédition, difficulté des entités, rareté des fusibles : inconnues.
+- **L'équilibrage** : aucune partie complète jouée par un humain. Seul repère : un joueur simulé qui erre au hasard, court et ne se soigne jamais survit de 6 à 16 minutes. Durée réelle d'une expédition, difficulté des entités, rareté des fusibles : inconnues.
 - **Dans le navigateur, non couverts par un test** : terminal (portes, caméras, transfert), caméra portable, mort par une entité, spectateur. La logique sous-jacente est testée en mémoire.
 - **Voix entre deux machines distinctes** (testée uniquement entre onglets en local).
 
@@ -81,6 +87,9 @@ Total : **113 tests unitaires, 53 assertions SQL, 9 tests navigateur** — tous 
 - La migration SQL échouait sur l'ajout d'un succès (`text[] || 'x'`).
 - Deux écrans coexistaient pendant les fondus (boutons fantômes).
 - L'objectif « Confiner la quarantaine » se validait d'emblée, les sas étant verrouillés d'origine.
+- **Regarder un document au sol faisait planter la partie** (« Objet inconnu : document ») — trouvé par le test d'endurance, pas par les tests navigateur.
+- Une plaie profonde tuait en moins de deux minutes sans trousse : l'hémorragie ralentit désormais avec le temps (toujours mortelle à terme).
+- En CI, le serveur d'aperçu n'écoutait pas sur `127.0.0.1`.
 
 ## Prochaines tâches, par ordre d'intérêt
 

@@ -8,6 +8,7 @@
  */
 import { itemDef, itemLabel } from '../inventory/items';
 import { DOOR_AJAR, DOOR_CLOSED, DOOR_OPEN } from '../world/grid';
+import { DOCUMENT_BY_ID } from '../world/lore';
 import { PROCESS_TIME, type WorldItem, type WorldState } from '../world/state';
 import { SECTOR_BY_ID } from '../world/sectors';
 import { CELL, GRID_W, type DoorDef, type FixtureDef } from '../world/types';
@@ -437,7 +438,9 @@ export function targetTitle(state: WorldState, target: TargetRef): string {
     return FIXTURE_NAMES[def.type] ?? def.type;
   }
   const it = state.items.get(target.uid);
-  return it ? itemLabel(it.item, it.data) : '';
+  if (!it) return '';
+  if (it.item === 'document') return DOCUMENT_BY_ID[it.data ?? '']?.title ?? 'Document';
+  return itemLabel(it.item, it.data);
 }
 
 export const FIXTURE_NAMES: Record<string, string> = {

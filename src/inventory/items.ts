@@ -202,6 +202,8 @@ export function itemDef(id: string): ItemDef {
 
 /** Nom affiché tenant compte de la donnée portée par l'objet (niveau de carte…). */
 export function itemLabel(id: string, data?: string): string {
+  // Les documents ne sont pas des objets d'inventaire : ils rejoignent directement le journal.
+  if (id === 'document') return 'Document';
   const d = itemDef(id);
   if (id === 'carte' && data) return `${d.name} niv. ${data}`;
   if (id === 'dossier' && data) return data === 'protocole' ? 'Dossier « Protocole »' : data === 'sujets' ? 'Dossier « Sujets »' : 'Dossier expérimental';

@@ -24,11 +24,13 @@ test('expédition solo : déplacement, lampe, inventaire, carte, pause, résulta
   }, { timeout: 60_000 }).toBeGreaterThan(0.5);
   await page.keyboard.up('KeyW');
 
-  // La souris fait tourner la vue.
+  // La souris fait tourner la vue. Le déplacement relatif est fourni explicitement : selon le
+  // navigateur de test, un mouvement synthétique sous capture de souris ne renseigne pas
+  // toujours movementX. On vérifie donc notre traitement de l'événement, pas celui du navigateur.
   const yaw = await app<number>(page, 'a.session.motor.yaw');
-  await page.mouse.move(500, 225);
-  await page.mouse.move(560, 225);
-  await expect.poll(() => app<number>(page, 'a.session.motor.yaw'), { timeout: 20_000 }).not.toBe(yaw);
+  await page.evaluate(() => document.dispatchEvent(new MouseEvent('mousemove', { movementX: 80, movementY: 10 })));
+  await expect.poll(() => app<number>(page, 'a.session.motor.yaw'), { timeout: 20_000 }).toBeGreaterThan(yaw);
+  expect(await app<number>(page, 'a.session.motor.pitch')).toBeGreaterThan(0);
 
   // Lampe torche.
   expect(await app(page, "a.session.inventory.find('lampe').on")).toBe(false);

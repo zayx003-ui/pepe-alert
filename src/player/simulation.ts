@@ -65,7 +65,18 @@ export interface SimSnapshot {
   alive: boolean;
 }
 
-const BLEED: Record<InjuryType, number> = { legere: 0.12, profonde: 0.45, fracture: 0, brulure: 0.05, traumatisme: 0 };
+const BLEED: Record<InjuryType, number> = { legere: 0.1, profonde: 0.24, fracture: 0, brulure: 0.04, traumatisme: 0 };
+
+/**
+ * Perte de sang d'une blessure non soignée, en points de santé par seconde.
+ * Une plaie profonde saigne fort puis se tasse en trois minutes sans jamais
+ * s'arrêter : elle laisse le temps de trouver des soins, pas de les ignorer.
+ */
+function bleedRate(i: Injury): number {
+  if (i.treated) return 0;
+  const clot = i.type === 'profonde' ? Math.max(0.3, 1 - i.age / 180) : 1;
+  return BLEED[i.type] * (0.5 + i.severity) * clot;
+}
 
 export class PlayerSimulation {
   health = 100;
@@ -131,7 +142,7 @@ export class PlayerSimulation {
 
   bleeding(): number {
     let b = 0;
-    for (const i of this.injuries) if (!i.treated) b += BLEED[i.type] * (0.5 + i.severity);
+    for (const i of this.injuries) b += bleedRate(i);
     return b;
   }
 
@@ -202,7 +213,7 @@ export class PlayerSimulation {
     if (input.isolated) gain += 0.55;
     if (input.inDark) gain += 0.45;
     gain += input.dread;
-    if (this.bleeding() > 0.3) gain += 0.4;
+    if (this.bleeding() > 0.15) gain += 0.4;
     if (gain > 0.3) this.stress += gain * dt;
     else {
       let calm = input.isolated ? 1.6 : 3.2;
@@ -235,7 +246,7 @@ export class PlayerSimulation {
     for (let i = this.injuries.length - 1; i >= 0; i--) {
       const inj = this.injuries[i]!;
       inj.age += dt;
-      if (!inj.treated) bleed += BLEED[inj.type] * (0.5 + inj.severity);
+      bleed += bleedRate(inj);
       // Une blessure légère se referme seule ; un traumatisme soigné finit par passer.
       if ((inj.type === 'legere' && inj.age > 45) || (inj.type === 'traumatisme' && inj.treated && inj.age > 40)) {
         this.injuries.splice(i, 1);
