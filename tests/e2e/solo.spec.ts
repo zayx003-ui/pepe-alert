@@ -66,8 +66,17 @@ test('expédition solo : déplacement, lampe, inventaire, carte, pause, résulta
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('nocturne.profil')!));
   expect(stored.expeditions).toBe(1);
   expect(stored.failures).toBe(1);
-  await page.click('#result-menu');
-  await expect(page.locator('#menu-solo')).toBeVisible();
+
+  // Retour au salon puis seconde expédition dans la foulée, sur une nouvelle graine.
+  const firstSeed = await page.locator('.panel .muted').first().innerText();
+  await page.click('#result-lobby');
+  await expect(page.locator('#lobby-start')).toBeEnabled();
+  await page.click('#lobby-start');
+  await waitForGame(page);
+  const secondSeed = await app<string>(page, 'a.session.seed');
+  expect(firstSeed).not.toContain(secondSeed);
+  expect(await app(page, 'a.session.status')).toBe('playing');
+  expect(await app(page, 'a.session.sim.health')).toBe(100);
   expect(errors).toEqual([]);
 });
 

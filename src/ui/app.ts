@@ -144,13 +144,12 @@ export class App {
   /* Écrans                                                            */
   /* ================================================================ */
 
-  /** Remplace l'écran courant avec une transition en fondu. */
+  /**
+   * Remplace l'écran courant ; le nouvel écran apparaît en fondu. L'ancien est retiré
+   * aussitôt : deux écrans ne coexistent jamais (pas de bouton fantôme encore cliquable).
+   */
   private show(next: HTMLElement | null): void {
-    const prev = this.current;
-    if (prev) {
-      prev.classList.remove('visible');
-      setTimeout(() => prev.remove(), 340);
-    }
+    this.current?.remove();
     this.current = next;
     if (next) {
       this.ui.append(next);
@@ -627,12 +626,12 @@ export class App {
     // Laisse voir la fin (mort, sas) avant de couper.
     await new Promise((r) => setTimeout(r, 2200));
     this.endGame();
+    // Le salon repasse aussitôt en phase de lobby : si l'hôte relance pendant qu'un joueur
+    // lit encore ses résultats, celui-ci est embarqué dans la nouvelle expédition.
+    this.room?.backToLobby();
     const canLobby = this.room !== null;
     const actions = {
-      lobby: () => {
-        this.room?.backToLobby();
-        this.showLobby();
-      },
+      lobby: () => this.showLobby(),
       menu: () => {
         this.leaveRoom();
         this.showMenu();

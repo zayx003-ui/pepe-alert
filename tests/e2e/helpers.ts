@@ -14,7 +14,8 @@ export function trackErrors(page: Page): string[] {
 export async function enter(page: Page, query = ''): Promise<void> {
   await page.goto(`/?q=faible&local=1${query}`);
   await page.click('#enter');
-  await expect(page.locator('#menu-solo')).toBeVisible();
+  // Avec auto=solo, le menu est aussitôt remplacé par le chargement de la partie.
+  if (!query.includes('auto=')) await expect(page.locator('#menu-solo')).toBeVisible();
 }
 
 /** Lit une valeur dans l'application (champs privés compris). */
