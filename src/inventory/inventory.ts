@@ -10,8 +10,8 @@ export interface InvItem {
 
 export const INVENTORY_SLOTS = 8;
 /** Au-delà de ce poids, le joueur est ralenti et s'essouffle plus vite. */
-export const COMFORT_WEIGHT = 6;
-export const MAX_WEIGHT = 12;
+export const COMFORT_WEIGHT = 5;
+export const MAX_WEIGHT = 10;
 
 /** Inventaire limité en emplacements et en poids. */
 export class Inventory {

@@ -67,6 +67,7 @@ export type WorldOp =
   | { k: 'item+'; it: WorldItem }
   | { k: 'item-'; uid: number }
   | { k: 'marker'; m: Marker }
+  | { k: 'marker-'; id: number }
   | { k: 'cam+'; c: PlacedCamera }
   | { k: 'cam-'; id: number }
   | { k: 'elev'; y: number; target: number }
@@ -256,6 +257,11 @@ export class WorldState implements DoorQuery {
       case 'marker':
         this.markers.push(op.m);
         break;
+      case 'marker-': {
+        const i = this.markers.findIndex((m) => m.id === op.id);
+        if (i >= 0) this.markers.splice(i, 1);
+        break;
+      }
       case 'cam+':
         this.cameras.push(op.c);
         break;
