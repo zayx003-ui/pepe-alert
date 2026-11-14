@@ -41,7 +41,7 @@ Total : **116 tests unitaires, 53 assertions SQL, 9 tests navigateur** — tous 
 
 ## Intégration continue
 
-Le workflow `ci.yml` a été exécuté sur GitHub à chaque push de cette branche. Typage, tests unitaires, tests SQL et build y passent. Les tests navigateur ont demandé deux corrections (serveur d'aperçu injoignable sur le runner, puis test du regard à la souris) ; **consulter l'onglet Actions pour l'état du dernier run** plutôt que de se fier à ce fichier.
+Le workflow `ci.yml` s'exécute sur GitHub à chaque push. Le run n° 3 (commit `cb3d302`) est **entièrement vert** : typage, 116 tests unitaires, 53 assertions SQL, build, 9 tests navigateur sur le runner `ubuntu-latest`. Les deux runs précédents avaient échoué sur les tests navigateur (serveur d'aperçu injoignable, puis test du regard à la souris) ; corrigés. Pour l'état des runs ultérieurs, voir l'onglet Actions.
 
 ## Fait mais non vérifié
 
