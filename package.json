@@ -1,0 +1,31 @@
+{
+  "name": "nocturne",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NOCTURNE — Le Protocole des Disparus. Survival horror psychologique coopératif (2 à 6 joueurs) pour navigateur.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test --trace off",
+    "test:sql": "bash supabase/tests/run.sh",
+    "docs": "vite-node scripts/gen-docs.ts",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^9.36.0",
+    "@supabase/supabase-js": "^2.119.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.0.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.8",
+    "vite-node": "^6.0.0",
+    "vitest": "^5.1.0"
+  }
+}
